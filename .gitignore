@@ -1,0 +1,12 @@
+# Contest inputs, outputs, state and receipts stay local.
+contests/*
+!contests/README.md
+vendor/
+__pycache__/
+*.pyc
+.venv/
+.env
+.env.*
+!.env.example
+.DS_Store
+.pytest_cache/

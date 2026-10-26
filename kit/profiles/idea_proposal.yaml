@@ -1,0 +1,63 @@
+# 보고서 유형 프로필 — 아이디어 제안서 (공모전·창업·정책 아이디어)
+# 공고문에 배점표가 있으면 공고문 배점이 아래 weight 보다 우선한다.
+id: idea_proposal
+name: 아이디어 제안서
+when_to_use: 아이디어 공모전, 창업 경진대회, 정책 제안 공모처럼 "문제 → 해결책 → 효과"를 설득하는 보고서
+
+pass_score: 80          # 심사위원 점수가 이 미만이면 수정 라운드 (최대 3회)
+max_review_rounds: 3
+default_length: "A4 10쪽 이내"   # 공고문 분량 기준이 있으면 그것을 따른다
+
+tone:
+  style: 설득형 개조식      # korean-report-style 스킬의 "설득형 개조식" 규칙
+  principles:
+    - 각 섹션 첫 문장에 결론(주장)을 먼저 쓴다
+    - 모든 주장에 수치 근거 1개 이상, 수치에는 출처
+    - 심사위원이 30초 안에 읽고 이해할 수 있게 표·그림을 섹션마다 1개 이상
+
+sections:
+  - id: summary
+    title: 요약
+    weight: 0              # 배점 없음. 분량 5%, 심사 항목 전체를 한 쪽에 압축
+    length_ratio: 0.05
+    must_include: [문제 한 줄, 해결책 한 줄, 핵심 정량 효과 1개]
+  - id: problem
+    title: 문제 정의 및 배경
+    weight: 20
+    must_include: [현황 통계, 문제의 원인, 기존 해결책의 한계]
+  - id: solution
+    title: 해결 방안
+    weight: 25
+    must_include: [서비스 개요 그림, 핵심 기능 3개 이내, 기존 방식과의 차별점 표, AI·데이터 활용 방식]
+  - id: feasibility
+    title: 실행 계획 및 예산
+    weight: 25
+    must_include: [단계별 일정표, 필요 자원·예산 개요, 위험 요소와 대응]
+  - id: impact
+    title: 기대 효과
+    weight: 20
+    must_include: [정량 지표와 산출 근거, 정성 효과, 확산 가능성]
+  - id: team
+    title: 팀 소개
+    weight: 0
+    length_ratio: 0.05
+    must_include: [역할 분담, 관련 경험]
+
+# 특정 섹션이 아니라 문서 전체로 평가받는 배점 (구성의 논리성·가독성·완성도).
+# 심사위원은 이 점수를 문서 전체를 보고 매기고, 분량 배분에는 쓰지 않는다.
+overall:
+  title: 구성 및 완성도
+  weight: 10
+
+researcher_scopes:
+  official: 공식 통계·정부 발표 (통계청, 관련 부처, 지자체)
+  cases: 국내외 유사 서비스·선행 수상작과 그 한계
+  market: 이해관계자(이용자·상인·기관)의 수요와 시장 규모
+  policy: 관련 정책·지원 사업·규제
+
+judge_focus:
+  - 문제와 해결책이 정확히 연결되는가 (해결책이 문제의 원인을 겨누는가)
+  - 정량 효과의 산출 근거가 있는가 (가정이 명시됐는가)
+  - 실현 가능성: 예산·일정이 현실적인가
+
+outputs: [md, hwpx]      # /export 기본 출력

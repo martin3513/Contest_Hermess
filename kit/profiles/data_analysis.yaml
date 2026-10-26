@@ -1,0 +1,58 @@
+# 보고서 유형 프로필 — 데이터 분석 보고서 (AI·데이터 경진대회 결과 보고서)
+# 공고문에 배점표가 있으면 공고문 배점이 아래 weight 보다 우선한다.
+id: data_analysis
+name: 데이터 분석 보고서
+when_to_use: Dacon·Kaggle·공공데이터 활용 대회처럼 분석 과정과 모델 결과를 설명하는 보고서
+
+pass_score: 80
+max_review_rounds: 3
+default_length: "A4 15쪽 이내"
+
+tone:
+  style: 기술 보고형 개조식
+  principles:
+    - 재현 가능하게: 데이터 출처, 전처리 순서, 모델 설정, 평가 지표를 빠짐없이
+    - 결과 수치는 분석 코드의 출력(results 파일)에서만 가져온다. 손으로 옮겨 적은 숫자 금지
+    - 그래프마다 "이 그래프가 말하는 것" 한 줄
+
+sections:
+  - id: summary
+    title: 요약
+    weight: 0
+    length_ratio: 0.05
+    must_include: [분석 목표, 최종 성능 지표, 핵심 인사이트 1개]
+  - id: background
+    title: 분석 배경 및 목표
+    weight: 10
+    must_include: [문제 정의, 평가 지표와 선택 이유]
+  - id: data
+    title: 데이터 이해 및 전처리
+    weight: 20
+    must_include: [데이터 출처·규모, 탐색적 분석(EDA) 그래프, 결측·이상치 처리, 파생 변수]
+  - id: modeling
+    title: 모델링
+    weight: 30
+    must_include: [베이스라인, 모델 선택 이유, 검증 방법(교차검증 등), 하이퍼파라미터]
+  - id: results
+    title: 결과 및 해석
+    weight: 25
+    must_include: [성능 비교표, 중요 변수 해석, 오류 사례 분석]
+  - id: application
+    title: 활용 방안 및 한계
+    weight: 15
+    must_include: [실제 적용 시나리오, 한계와 개선 방향]
+
+researcher_scopes:
+  official: 데이터 제공 기관의 설명서·변수 정의
+  cases: 같은 대회·유사 대회의 상위 솔루션과 기법
+  market: 분석 결과를 쓸 현장(이용자·기관)의 요구
+  policy: 데이터 이용 조건·개인정보 관련 규정
+
+judge_focus:
+  - 보고서만 보고 결과를 재현할 수 있는가
+  - 성능 수치가 결과 파일과 일치하는가 (consistency-checker 와 교차)
+  - 인사이트가 실제 활용으로 이어지는가
+
+extra_agents_hint: 분석 코드 실행이 필요하면 오케스트레이터가 사용자에게 데이터·코드 위치를 묻고, 결과 수치는 그 출력 파일을 출처로 쓴다.
+
+outputs: [md, hwpx]

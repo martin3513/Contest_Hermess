@@ -1,0 +1,61 @@
+# 보고서 유형 프로필 — 연구 보고서 (학술 경진대회·논문형 보고서)
+# 공고문에 배점표가 있으면 공고문 배점이 아래 weight 보다 우선한다.
+id: research_report
+name: 연구 보고서
+when_to_use: 학술 경진대회, 연구 공모전, 논문 형식(IMRaD)을 요구하는 보고서
+
+pass_score: 80
+max_review_rounds: 3
+default_length: "A4 20쪽 이내"
+
+tone:
+  style: 학술 서술형     # 개조식보다 완결된 문장 위주. 단, 결과 요약표는 허용
+  principles:
+    - 주장마다 선행연구 인용 (저자, 연도) 형식
+    - 연구 질문 → 방법 → 결과 → 논의가 한 줄로 이어지게
+    - 한계를 숨기지 않고 별도 절로
+
+sections:
+  - id: abstract
+    title: 초록
+    weight: 0
+    length_ratio: 0.05
+    must_include: [연구 목적, 방법, 핵심 결과, 의의]
+  - id: introduction
+    title: 서론
+    weight: 15
+    must_include: [연구 배경, 연구 질문 또는 가설, 연구의 기여]
+  - id: literature
+    title: 선행연구 검토
+    weight: 15
+    must_include: [주요 선행연구 5편 이상, 연구 공백(gap)]
+  - id: method
+    title: 연구 방법
+    weight: 25
+    must_include: [연구 설계, 자료 수집, 분석 방법, 타당성 확보 방안]
+  - id: results
+    title: 연구 결과
+    weight: 25
+    must_include: [결과표·그림, 가설 검증 결과]
+  - id: discussion
+    title: 논의 및 결론
+    weight: 20
+    must_include: [결과 해석, 시사점, 한계와 후속 연구]
+  - id: references
+    title: 참고문헌
+    weight: 0
+    length_ratio: 0.05
+    must_include: [본문 인용과 1:1 대응]
+
+researcher_scopes:
+  official: 공식 통계·기관 보고서
+  cases: 핵심 선행연구 (학술지·학위논문)
+  market: 연구 대상 집단의 현황
+  policy: 관련 제도·정책 연구
+
+judge_focus:
+  - 연구 질문과 방법이 맞물리는가
+  - 본문 인용과 참고문헌이 1:1로 대응하는가 (consistency-checker 와 교차)
+  - 기여와 한계가 균형 있게 제시됐는가
+
+outputs: [md, hwpx]
