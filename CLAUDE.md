@@ -8,3 +8,7 @@ Orca 팀 모드는 `docs/ORCHESTRATION.md`를 따른다. Claude 내장 Task로 �
 원본은 `contests/<대회명>/input/`, 결과는 `output/`, 상태는 `_workspace/state.json`이다.
 원본을 변경하지 않는다. 대회 파일은 기본 Git 제외다. 제출·메일은 사람이 직접 한다.
 코드·사용법 수정에는 보고서 승인 절차를 적용하지 않는다.
+
+네이밍은 `WORKFLOW.md`의 네이밍 절차와 `agents/naming-specialist.md`를 따른다.
+모델 배정·토큰 절약은 `docs/MODEL_POLICY.md`, 배정값은 `kit/model-policy.json`을 따른다.
+변경 이력: 2026-10-28 — 네이밍 역할, 역할별 모델 배정, 상태 자동 조회 추가(사용자 요청).

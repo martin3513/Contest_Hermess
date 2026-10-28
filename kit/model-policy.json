@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "providers": {
+    "codex": {"light": "gpt-6-luna", "standard": "gpt-6.1-sol", "deep": "gpt-6-astra"},
+    "claude": {"light": "haiku", "standard": "sonnet", "deep": "opus"}
+  },
+  "roles": {
+    "coordinator": "standard",
+    "requirements-analyst": "light",
+    "researcher": "light",
+    "outline-designer": "standard",
+    "writer": "standard",
+    "naming-specialist": "standard",
+    "judge-reviewer": "standard",
+    "consistency-checker": "light"
+  },
+  "max_parallel_workers": 2,
+  "max_deep_tasks_per_run": 1,
+  "max_revision_attempts_before_escalation": 1
+}

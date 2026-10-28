@@ -2,7 +2,7 @@
 
 WORKFLOW.md의 `orchestrated` 모드에서 적용한다. Claude와 Codex는 같은 계약을 사용하고
 `--agent claude` / `--agent codex`만 다르다. 선택한 제공자로 코디네이터·워커를 통일한다.
-혼합 팀은 사용자 요청 시 사용한다. 모델·권한은 Orca 설정을 유지한다.
+혼합 팀은 사용자 요청 시 사용한다. 권한은 Orca 설정을 유지한다. 모델은 `docs/MODEL_POLICY.md`와 `kit/model-policy.json`을 따른다.
 
 ## 버전별 가이드
 
@@ -26,7 +26,7 @@ orca status --json
 
 ```text
 orca orchestration run-create --objective "대회명: 공고 분석부터 목차 승인까지" --json
-orca orchestration worker-start --spec "자기완결 작업 명세" --worktree current --agent codex --json
+orca orchestration worker-start --spec "자기완결 작업 명세" --worktree current --agent codex --model <MODEL_ID> --json
 ```
 
 spec에는 다음을 실제 값으로 넣는다. 셸 문자열 결합 대신 안전한 인자 배열을 사용한다.
@@ -38,7 +38,7 @@ spec에는 다음을 실제 값으로 넣는다. 셸 문자열 결합 대신 안
 - Acceptance: 배점 합계·출처·필수 항목 등 확인할 내용.
 - 완료 보고는 주입된 preamble의 Task/Dispatch/handle과 worker_done 명령을 그대로 따른다.
 
-분석 완료 → 조사 4개 범위 → 목차 순서다. 동시 워커는 기본 2개로 제한해 두 번 나눈다.
+분석 완료 → 필요한 조사 → 목차 순서다. 관련 없는 조사 파일에는 생략 이유를 남긴다. 단순 조사는 한 워커에 묶어 맡기며 동시 워커는 기본 2개로 제한한다.
 사용자 요청과 사용량 여유가 있으면 최대 4개로 늘린다. 범위별·섹션별 출력으로 동시 쓰기를 막는다.
 심사는 새 워커로 실행하고 작성 과정·리서치 메모·이전 심사를 주지 않는다.
 같은 폴더의 읽기 제한은 작업 계약이며 OS 수준 격리가 아니다.
@@ -71,3 +71,5 @@ orca skills get orchestration --reference references/recovery-and-cleanup.md --j
 사용자 승인 대기 전 모든 기대 Dispatch를 정산하고 워커를 정리한다.
 worker-list --run <RunID> --terminal-state reclaimable --json에 남은 항목이 없어야 한다.
 작업별 성공/실패·근거·남은 문제를 기록하고 다음 승인 후 새 구간을 실행한다.
+
+모델 배정·승격 이유·요청/확인 모델은 orchestration.json에 기록한다. 작업 시작·완료·실패·승인 대기 때 state.json의 progress를 갱신한다. 읽기 전용 모니터는 `python start.py status "대회명" --watch`다. 기록 시각은 워커 생존 증거가 아니다. 오래된 기록은 기존 감독 루프에서 worker-list/worker-show로 확인한다.
