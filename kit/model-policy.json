@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "providers": {
-    "codex": {"light": "gpt-6-luna", "standard": "gpt-6.1-sol", "deep": "gpt-6-astra"},
+    "codex": {"coordinator": "gpt-6.1-terra", "light": "gpt-6-luna", "standard": "gpt-6.1-sol", "deep": "gpt-6-astra"},
     "claude": {"light": "haiku", "standard": "sonnet", "deep": "opus"}
   },
   "roles": {

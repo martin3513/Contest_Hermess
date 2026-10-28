@@ -66,7 +66,7 @@ class LauncherTests(unittest.TestCase):
         self.assertFalse((app.contest_path("미리보기") / "_workspace/launch-pending.json").exists())
 
     def test_naming_preview_selects_model_without_ai(self):
-        for agent, expected in (("claude", "sonnet"), ("codex", "gpt-6.1-sol")):
+        for agent, expected in (("claude", "sonnet"), ("codex", "gpt-6.1-terra")):
             output = io.StringIO()
             with patch.object(app, "call_orca") as call, redirect_stdout(output):
                 app.launch("네이밍", "idea_proposal", agent, "orchestrated", True, "naming")
@@ -74,6 +74,30 @@ class LauncherTests(unittest.TestCase):
             argv = json.loads(output.getvalue())["argv"]
             self.assertEqual(argv[argv.index("--model") + 1], expected)
             self.assertIn("작업 종류는 naming", argv[argv.index("--prompt") + 1])
+
+    def test_notes_and_model_are_sent_and_preserved(self):
+        path = self.prepared()
+        notes = '3개 분야 중 1번 분야; "예산 500만 원"'
+        response = {"ok": True, "result": {"app": {"running": True}}}
+        with patch.object(app, "call_orca", return_value=response) as call, patch("builtins.print"):
+            app.launch("한글 대회", "idea_proposal", "codex", "orchestrated", model="gpt-6.1-terra", notes=notes)
+        argv = call.call_args.args[0]
+        self.assertEqual(argv[argv.index("--model") + 1], "gpt-6.1-terra")
+        self.assertIn(json.dumps(notes, ensure_ascii=False), argv[argv.index("--prompt") + 1])
+        pending = json.loads((path / "_workspace/launch-pending.json").read_text(encoding="utf-8"))
+        self.assertEqual(pending["argv"], argv)
+
+    def test_start_menu_for_both_providers_passes_notes_and_model(self):
+        self.prepared()
+        for choice in ("2", "3"):
+            with self.subTest(choice=choice):
+                inputs = iter([choice, "1", "1", "custom-model", "1번 분야로 작성", "0"])
+                with patch("builtins.input", side_effect=lambda _: next(inputs)), patch("builtins.print"), \
+                     patch.object(app, "choose_contest", return_value="한글 대회"), patch.object(app, "launch") as call:
+                    app.menu()
+                self.assertEqual(call.call_args.args[2], "claude" if choice == "2" else "codex")
+                self.assertEqual(call.call_args.kwargs["model"], "custom-model")
+                self.assertEqual(call.call_args.kwargs["notes"], "1번 분야로 작성")
 
     def test_status_is_read_only_and_tolerates_bad_json(self):
         path = self.prepared()

@@ -31,11 +31,17 @@ python -m pip install -r requirements-hwpx.txt
    이미지 PDF는 OCR이 필요할 수 있습니다. 구형 `.hwp`는 한글에서 `.hwpx`로 저장해 넣습니다.
 4. **2번 Claude Code** 또는 **3번 Codex**를 선택합니다. 기존 대회가 번호로 나오면 번호를 고릅니다. 메뉴 1에서 0번을 선택하면 새 대회명을 입력할 수 있습니다.
 5. 실행 방식에서 **1 팀 작업** 또는 **2 단독 작업**을 고릅니다.
-6. Orca에 열린 새 대화에서 진행 상황과 질문을 확인합니다. 런처 창은 닫아도 됩니다.
+6. 작업 종류를 고른 뒤 시작 모델과 전달사항을 입력합니다. 모델을 바꾸지 않거나 전달사항이 없으면 각각 Enter를 누릅니다.
+   예: `공고의 3개 분야 중 1번 분야로 작성하고 예산은 500만 원 이내로 잡아줘`.
+7. Orca에 열린 새 대화에서 진행 상황과 질문을 확인합니다. 런처 창은 닫아도 됩니다.
 
 팀 작업은 담당 역할을 실제 Orca 워커로 나눕니다. 기본 조사 동시 실행은 2개이며 범위 4개를 두 번에 나눕니다.
 단독 작업은 한 에이전트가 순서대로 수행하므로 비용을 줄일 수 있지만 심사가 독립 맥락에서 이루어지지 않습니다.
 실행기에서 제공자를 선택해도 권한 설정은 Orca 설정을 따릅니다. 역할별 모델 배정은 `docs/MODEL_POLICY.md`를 참고하세요.
+기본 시작 모델은 Codex `gpt-6.1-terra`, Claude `sonnet`입니다. 모델 ID를 입력하면 **이번 코디네이터**만 바뀝니다.
+팀 워커는 별도 역할별 모델 정책을 따릅니다. 특정 워커나 모든 워커에도 모델을 지정하고 싶으면 전달사항에 명시하세요.
+선택한 모델이 계정이나 Orca에서 지원되지 않으면 오류가 표시됩니다. 다른 모델로 자동 변경하지 않습니다.
+전달사항은 한 줄로 입력합니다. 시작 프롬프트와 로컬 실행 기록에 남으므로 비밀번호나 API 키는 입력하지 마세요.
 에이전트 사용량은 연결한 Claude/Codex 계정에서 발생합니다.
 
 ## 3. 자료와 결과를 구분하는 법
@@ -110,11 +116,13 @@ Codex는 `$contest-report` 또는 자연어로 요청하세요. Claude 전용 �
 python -X utf8 start.py init "2026_정책공모전" --profile idea_proposal
 python -X utf8 start.py launch "2026_정책공모전" --agent claude --mode orchestrated
 python -X utf8 start.py launch "2026_정책공모전" --agent codex --mode orchestrated --preview
+python -X utf8 start.py launch "2026_정책공모전" --agent codex --model gpt-6.1-terra --notes "3개 분야 중 1번 분야로 작성"
 python -X utf8 start.py status
 python -X utf8 start.py doctor
 ```
 
 `--preview`는 폴더와 실행 인자를 준비하고 AI는 실행하지 않습니다.
+`--notes`는 전달사항, `--model`은 이번 코디네이터 모델입니다. 둘 다 생략할 수 있습니다.
 `--profile` 기본은 idea_proposal입니다. 다른 유형의 기존 대회는 해당 `--profile`도 지정합니다.
 
 ## 8. 문제 해결과 수정할 곳

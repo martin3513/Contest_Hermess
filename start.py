@@ -123,7 +123,7 @@ def call_orca(args):
     return payload
 
 
-def make_prompt(name, profile, agent, mode, task="report"):
+def make_prompt(name, profile, agent, mode, task="report", notes=""):
     return (f"이 저장소의 WORKFLOW.md를 읽고 보고서 작업을 진행하세요. 대회명은 JSON 문자열 {json.dumps(name, ensure_ascii=False)}, "
             f"프로필은 {profile}, 실행 제공자는 {agent}, 모드는 {mode}입니다. "
             f"작업 종류는 {task}입니다. naming이면 WORKFLOW.md의 네이밍 절차만 실행하세요. "
@@ -134,15 +134,19 @@ def make_prompt(name, profile, agent, mode, task="report"):
             "새 세션 실행은 승인이나 처음부터 다시 작성하라는 뜻이 아닙니다. "
             "orchestrated 모드는 docs/ORCHESTRATION.md에 따라 실제 Orca worker를 감독하세요. "
             "single 모드는 역할별 순차 작업이며 독립 심사가 아님을 표시하세요. "
-            "승인 대기 단계이면 해당 결과를 보여주고 사용자 응답을 기다리세요. 자동 제출하지 마세요.")
+            "승인 대기 단계이면 해당 결과를 보여주고 사용자 응답을 기다리세요. 자동 제출하지 마세요. "
+            f"이번 작업의 사용자 전달사항(JSON 문자열): {json.dumps(notes, ensure_ascii=False)}. "
+            "전달사항이 있으면 해당 조건을 반영하고 중요한 결정은 작업 이력에 기록하세요. "
+            "팀 작업에서는 관련 조건을 담당 워커의 작업 명세에도 전달하세요.")
 
 
-def launch(name, profile, agent, mode, preview=False, task="report", model=None):
+def launch(name, profile, agent, mode, preview=False, task="report", model=None, notes=""):
     path = initialize(name, profile)
-    prompt = make_prompt(name, profile, agent, mode, task)
+    prompt = make_prompt(name, profile, agent, mode, task, notes)
     args = ["agent", "launch", "--agent", agent, "--worktree", f"path:{ROOT}", "--prompt", prompt, "--json"]
     policy = json.loads((Path(__file__).resolve().parent / "kit/model-policy.json").read_text(encoding="utf-8"))
-    args.extend(["--model", model or policy["providers"][agent]["standard"]])
+    provider_policy = policy["providers"][agent]
+    args.extend(["--model", model or provider_policy.get("coordinator", provider_policy["standard"])])
     if preview:
         print(json.dumps({"executable": orca_command(), "argv": args}, ensure_ascii=False, indent=2))
         return
@@ -168,7 +172,7 @@ def launch(name, profile, agent, mode, preview=False, task="report", model=None)
         write_json(path / f"_workspace/launches/{attempt}.json", {"error": str(error), "argv": args, "status": "unknown"})
         raise RuntimeError(f"실행 결과를 확정하지 못했습니다. 자동 재실행하지 않습니다.\n{error}\n기록: {pending}") from error
     write_json(path / f"_workspace/launches/{attempt}.json", receipt)
-    write_json(pending, {"attempt": attempt, "agent": agent, "mode": mode, "created": now(), "status": "receipt-saved"})
+    write_json(pending, {"attempt": attempt, "agent": agent, "mode": mode, "created": now(), "argv": args, "status": "receipt-saved"})
     print(json.dumps(receipt, ensure_ascii=False, indent=2))
     print("Orca에 실행 요청을 보냈습니다. 위 영수증과 Orca 대화를 확인하세요. 이후 '진행'은 같은 대화에서 입력합니다.")
 
@@ -328,7 +332,14 @@ def menu():
                     task = input("작업: 1 보고서 / 2 네이밍 [1]: ").strip() or "1"
                     if task not in {"1", "2"}:
                         raise ValueError("작업은 1 또는 2입니다.")
-                    launch(name, profile, "claude" if choice == "2" else "codex", "orchestrated" if value == "1" else "single", task="naming" if task == "2" else "report")
+                    agent = "claude" if choice == "2" else "codex"
+                    policy = json.loads((Path(__file__).resolve().parent / "kit/model-policy.json").read_text(encoding="utf-8"))["providers"][agent]
+                    default_model = policy.get("coordinator", policy["standard"])
+                    print(f"시작 모델 기본값: {default_model} (이번 코디네이터에 적용)")
+                    model = input("다른 모델 ID 입력, 기본값은 Enter: ").strip() or None
+                    print("전달사항 예: 공고의 3개 분야 중 1번 분야로 작성")
+                    notes = input("이번 작업의 유의사항·전달사항 (없으면 Enter): ").strip()
+                    launch(name, profile, agent, "orchestrated" if value == "1" else "single", task="naming" if task == "2" else "report", model=model, notes=notes)
         except (ValueError, RuntimeError, OSError) as error:
             print(f"\n확인 필요: {error}")
 
@@ -345,7 +356,8 @@ def main():
             p.add_argument("--mode", choices=("orchestrated", "single"), default="orchestrated")
             p.add_argument("--preview", action="store_true", help="폴더와 실행 인자만 준비 (AI 실행 없음)")
             p.add_argument("--task", choices=("report", "naming"), default="report")
-            p.add_argument("--model", help="코디네이터 모델 ID (생략 시 일반 모델)")
+            p.add_argument("--model", help="이번 코디네이터 모델 ID (생략 시 제공자별 기본값)")
+            p.add_argument("--notes", default="", help="이번 작업의 유의사항·전달사항")
     subs.add_parser("doctor")
     p = subs.add_parser("status")
     p.add_argument("name", nargs="?")
@@ -359,7 +371,7 @@ def main():
         if args.command == "init":
             print(initialize(args.name, args.profile))
         elif args.command == "launch":
-            launch(args.name, args.profile, args.agent, args.mode, args.preview, args.task, args.model)
+            launch(args.name, args.profile, args.agent, args.mode, args.preview, args.task, args.model, args.notes)
         elif args.command == "status":
             if args.watch:
                 watch_status(args.name, args.interval)
