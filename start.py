@@ -12,6 +12,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import textwrap
 import time
 import uuid
 
@@ -186,7 +187,32 @@ def show_status(name=None):
                     print(f"  {job.get('status', '?')} | {job.get('role', '?')} | {job.get('model', '미확인')} | {job.get('summary', '')}")
                 print(f"차단 요인: {progress.get('blocker') or '기록 없음'}")
                 print(f"토큰(실측): {progress.get('usage_tokens') if progress.get('usage_tokens') is not None else '미수집'}")
-                print(f"심사: {data.get('scores', [])}\n승인: {data.get('approvals', {})}\n결과: {path / 'output'}")
+                print("심사 결과:")
+                scores = data.get("scores", [])
+                if scores:
+                    for score in scores:
+                        result = f"{score.get('score', '?')}/{score.get('max', '?')}점"
+                        status = score.get("status")
+                        if status:
+                            result += f" · {status}"
+                        lines = textwrap.wrap(result, width=68, subsequent_indent="      ")
+                        print(f"  {score.get('round', '?')}회차: {lines[0] if lines else result}")
+                        for line in lines[1:]:
+                            print(f"    {line}")
+                else:
+                    print("  기록 없음")
+                print("승인 기록:")
+                approvals = data.get("approvals", {})
+                if approvals:
+                    for key, approval in approvals.items():
+                        date = approval.get("approved_at", "시각 미기록")
+                        summary = approval.get("summary", "요약 없음")
+                        print(f"  {key}: {date}")
+                        for line in textwrap.wrap(str(summary), width=68, subsequent_indent="    "):
+                            print(f"    {line}")
+                else:
+                    print("  기록 없음")
+                print(f"결과 폴더: {path / 'output'}")
             except (ValueError, OSError, AttributeError, TypeError) as error:
                 print(f"[{path.name}] 상태 읽기 실패: {error}. 다음 조회에서 다시 확인합니다.")
     if name and not (contest_path(name) / "_workspace/state.json").exists():
