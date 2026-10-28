@@ -12,6 +12,7 @@ import shutil
 import stat
 import subprocess
 import sys
+import time
 import uuid
 
 ROOT = Path(__file__).resolve().parent
@@ -121,9 +122,12 @@ def call_orca(args):
     return payload
 
 
-def make_prompt(name, profile, agent, mode):
+def make_prompt(name, profile, agent, mode, task="report"):
     return (f"이 저장소의 WORKFLOW.md를 읽고 보고서 작업을 진행하세요. 대회명은 JSON 문자열 {json.dumps(name, ensure_ascii=False)}, "
             f"프로필은 {profile}, 실행 제공자는 {agent}, 모드는 {mode}입니다. "
+            f"작업 종류는 {task}입니다. naming이면 WORKFLOW.md의 네이밍 절차만 실행하세요. "
+            "docs/MODEL_POLICY.md와 kit/model-policy.json을 읽고 역할별 모델을 명시하세요. "
+            "진행 변경 시 state.json의 progress를 갱신하세요. "
             "contests/<대회명>/input 원본을 읽고 output에 최종 파일을 저장하세요. "
             "state.json과 최근 작업 이력을 확인해 이어서 진행하고 기존 결과를 덮어쓰지 마세요. "
             "새 세션 실행은 승인이나 처음부터 다시 작성하라는 뜻이 아닙니다. "
@@ -132,10 +136,12 @@ def make_prompt(name, profile, agent, mode):
             "승인 대기 단계이면 해당 결과를 보여주고 사용자 응답을 기다리세요. 자동 제출하지 마세요.")
 
 
-def launch(name, profile, agent, mode, preview=False):
+def launch(name, profile, agent, mode, preview=False, task="report", model=None):
     path = initialize(name, profile)
-    prompt = make_prompt(name, profile, agent, mode)
+    prompt = make_prompt(name, profile, agent, mode, task)
     args = ["agent", "launch", "--agent", agent, "--worktree", f"path:{ROOT}", "--prompt", prompt, "--json"]
+    policy = json.loads((Path(__file__).resolve().parent / "kit/model-policy.json").read_text(encoding="utf-8"))
+    args.extend(["--model", model or policy["providers"][agent]["standard"]])
     if preview:
         print(json.dumps({"executable": orca_command(), "argv": args}, ensure_ascii=False, indent=2))
         return
@@ -171,9 +177,29 @@ def show_status(name=None):
     for path in paths:
         state = path / "_workspace/state.json"
         if state.exists():
-            print(f"\n[{path.name}]\n{state.read_text(encoding='utf-8-sig')}\n결과: {path / 'output'}")
+            try:
+                data = json.loads(state.read_text(encoding="utf-8-sig"))
+                progress = data.get("progress", {})
+                print(f"\n[{path.name}] 단계: {data.get('stage', '미기록')} / 최근 기록: {data.get('updated', '미기록')}")
+                print(f"현재: {progress.get('current', '미기록')}\n다음: {progress.get('next', '미기록')}")
+                for job in progress.get("tasks", []):
+                    print(f"  {job.get('status', '?')} | {job.get('role', '?')} | {job.get('model', '미확인')} | {job.get('summary', '')}")
+                print(f"차단 요인: {progress.get('blocker') or '기록 없음'}")
+                print(f"토큰(실측): {progress.get('usage_tokens') if progress.get('usage_tokens') is not None else '미수집'}")
+                print(f"심사: {data.get('scores', [])}\n승인: {data.get('approvals', {})}\n결과: {path / 'output'}")
+            except (ValueError, OSError, AttributeError, TypeError) as error:
+                print(f"[{path.name}] 상태 읽기 실패: {error}. 다음 조회에서 다시 확인합니다.")
     if name and not (contest_path(name) / "_workspace/state.json").exists():
         print("아직 작업 기록이 없습니다. 먼저 대회 폴더를 만드세요.")
+
+
+def watch_status(name=None, interval=5):
+    if not 1 <= interval <= 60:
+        raise ValueError("갱신 간격은 1~60초입니다.")
+    print("저장된 상태를 자동 조회합니다. AI 호출 없음 / 종료: Ctrl+C. 갱신 시각은 실행 생존 증거가 아닙니다.")
+    while True:
+        show_status(name)
+        time.sleep(interval)
 
 
 def reset_launch(name):
@@ -195,9 +221,33 @@ def doctor():
     print(json.dumps({"app": result.get("app"), "runtime_state": result.get("runtime", {}).get("state")}, ensure_ascii=False, indent=2))
 
 
+def choose_contest(allow_new=False):
+    contests = sorted((p for p in (ROOT / "contests").glob("*") if p.is_dir()), key=lambda p: p.name.casefold())
+    print("\n기존 대회:")
+    for index, path in enumerate(contests, 1):
+        print(f"{index}. {path.name}")
+    if allow_new:
+        print("0. 새 대회 이름 입력")
+        selected = input("번호 선택: ").strip()
+        if selected == "0":
+            name = input("새 대회명 (예: 2026_정책공모전): ").strip()
+            if not name:
+                raise ValueError("대회명을 입력하세요.")
+            return name
+    else:
+        if not contests:
+            raise ValueError("기존 대회가 없습니다. 메뉴 1에서 먼저 만들어 주세요.")
+        selected = input("대회 번호 선택 (0: 취소): ").strip()
+        if selected == "0":
+            return None
+    if not selected.isdecimal() or not 1 <= int(selected) <= len(contests):
+        raise ValueError("목록에 있는 번호를 선택하세요.")
+    return contests[int(selected) - 1].name
+
+
 def menu():
     while True:
-        print("\n경진대회 보고서 — Claude Code / Codex + Orca\n1. 대회 폴더 만들기\n2. Claude Code로 시작/이어가기\n3. Codex로 시작/이어가기\n4. 진행 상황\n5. 자료 입력 폴더 열기\n6. 결과 폴더 열기\n7. 이전 실행 확인 후 새 세션 허용\n8. 환경 점검\n0. 종료")
+        print("\n경진대회 보고서 — Claude Code / Codex + Orca\n1. 대회 폴더 만들기\n2. Claude Code로 시작/이어가기\n3. Codex로 시작/이어가기\n4. 진행 상황\n5. 자료 입력 폴더 열기\n6. 결과 폴더 열기\n7. 이전 실행 확인 후 새 세션 허용\n8. 환경 점검\n9. 진행 상황 자동 조회\n0. 종료")
         choice = input("선택: ").strip()
         try:
             if choice == "0":
@@ -205,14 +255,23 @@ def menu():
             if choice == "8":
                 doctor()
                 continue
-            if choice == "4":
-                show_status()
+            if choice in {"4", "9"}:
+                name = choose_contest()
+                if name is None:
+                    continue
+                try:
+                    if choice == "9":
+                        watch_status(name)
+                    else:
+                        show_status(name)
+                except KeyboardInterrupt:
+                    print("자동 조회를 끝냅니다.")
                 continue
             if choice not in {"1", "2", "3", "5", "6", "7"}:
                 continue
-            existing = [p.name for p in (ROOT / "contests").glob("*") if p.is_dir()]
-            print("기존 대회: " + (", ".join(existing) or "없음"))
-            name = input("대회명 (예: 2026_정책공모전): ").strip()
+            name = choose_contest(allow_new=(choice == "1"))
+            if name is None:
+                continue
             path = contest_path(name)
             if choice in {"5", "6"}:
                 target = path / ("input" if choice == "5" else "output")
@@ -240,7 +299,10 @@ def menu():
                     value = input("실행 방식: 1 Orca 팀 작업 / 2 단독 작업 [1]: ").strip() or "1"
                     if value not in {"1", "2"}:
                         raise ValueError("실행 방식은 1 또는 2입니다.")
-                    launch(name, profile, "claude" if choice == "2" else "codex", "orchestrated" if value == "1" else "single")
+                    task = input("작업: 1 보고서 / 2 네이밍 [1]: ").strip() or "1"
+                    if task not in {"1", "2"}:
+                        raise ValueError("작업은 1 또는 2입니다.")
+                    launch(name, profile, "claude" if choice == "2" else "codex", "orchestrated" if value == "1" else "single", task="naming" if task == "2" else "report")
         except (ValueError, RuntimeError, OSError) as error:
             print(f"\n확인 필요: {error}")
 
@@ -256,9 +318,13 @@ def main():
             p.add_argument("--agent", choices=("claude", "codex"), default="codex")
             p.add_argument("--mode", choices=("orchestrated", "single"), default="orchestrated")
             p.add_argument("--preview", action="store_true", help="폴더와 실행 인자만 준비 (AI 실행 없음)")
+            p.add_argument("--task", choices=("report", "naming"), default="report")
+            p.add_argument("--model", help="코디네이터 모델 ID (생략 시 일반 모델)")
     subs.add_parser("doctor")
     p = subs.add_parser("status")
     p.add_argument("name", nargs="?")
+    p.add_argument("--watch", action="store_true")
+    p.add_argument("--interval", type=int, default=5)
     p = subs.add_parser("reset-launch")
     p.add_argument("name")
     p.add_argument("--confirmed-idle", action="store_true", required=True)
@@ -267,9 +333,12 @@ def main():
         if args.command == "init":
             print(initialize(args.name, args.profile))
         elif args.command == "launch":
-            launch(args.name, args.profile, args.agent, args.mode, args.preview)
+            launch(args.name, args.profile, args.agent, args.mode, args.preview, args.task, args.model)
         elif args.command == "status":
-            show_status(args.name)
+            if args.watch:
+                watch_status(args.name, args.interval)
+            else:
+                show_status(args.name)
         elif args.command == "doctor":
             doctor()
         elif args.command == "reset-launch":

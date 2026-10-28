@@ -6,6 +6,7 @@
 | 역할 | 입력 | 출력 (대회 폴더 기준) |
 |---|---|---|
 | requirements-analyst | input, 프로필 | docs/requirements.md |
+| naming-specialist | 네이밍 브리프, 공고 조건 | docs/naming.md |
 | researcher | requirements, 지정 범위 | _workspace/research/<범위>.md |
 | outline-designer | requirements, research, 프로필 | docs/outline.md |
 | writer | outline, research, 수정 지시 | _workspace/draft/NN_<섹션>.md |
@@ -22,7 +23,7 @@
 
 `contests/<대회명>/input/` 원본 / `output/` 최종 / `docs/` 요구사항·목차·이력 / `_workspace/` 중간물.
 코디네이터만 state.json을 갱신하고 워커는 지정 출력만 쓴다.
-모델은 Orca 설정을 따른다. 제공자 전환 시 파일을 그대로 재사용한다.
+모델은 `docs/MODEL_POLICY.md`와 `kit/model-policy.json`을 따른다. 제공자 전환 시 파일을 그대로 재사용한다.
 
 ```json
 {"schema_version":1,"profile":"idea_proposal","stage":"approval_1","round":0,"scores":[],"approvals":{},"updated":"2026-10-27T00:00:00+09:00"}
@@ -30,3 +31,5 @@
 
 작업 이력의 `## 다음 단계 참조`에 미해결·핵심 결정·다음 단계와 입력을 기록한다.
 공고문 배점이 프로필보다 우선하며 분량 배분은 korean-report-style을 따른다.
+
+관련 없는 조사 범위는 생략 이유만 기록하고 별도 워커를 만들지 않는다.

@@ -7,6 +7,8 @@ import subprocess
 import threading
 from concurrent.futures import ThreadPoolExecutor
 import unittest
+import io
+from contextlib import redirect_stdout
 from unittest.mock import patch
 
 SPEC = importlib.util.spec_from_file_location("launcher", Path(__file__).resolve().parents[1] / "start.py")
@@ -62,6 +64,34 @@ class LauncherTests(unittest.TestCase):
             app.launch("미리보기", "idea_proposal", "claude", "orchestrated", True)
         call.assert_not_called()
         self.assertFalse((app.contest_path("미리보기") / "_workspace/launch-pending.json").exists())
+
+    def test_naming_preview_selects_model_without_ai(self):
+        for agent, expected in (("claude", "sonnet"), ("codex", "gpt-6.1-sol")):
+            output = io.StringIO()
+            with patch.object(app, "call_orca") as call, redirect_stdout(output):
+                app.launch("네이밍", "idea_proposal", agent, "orchestrated", True, "naming")
+            call.assert_not_called()
+            argv = json.loads(output.getvalue())["argv"]
+            self.assertEqual(argv[argv.index("--model") + 1], expected)
+            self.assertIn("작업 종류는 naming", argv[argv.index("--prompt") + 1])
+
+    def test_status_is_read_only_and_tolerates_bad_json(self):
+        path = self.prepared()
+        state = path / "_workspace/state.json"
+        for content in (state.read_text(encoding="utf-8"), "{invalid"):
+            state.write_text(content, encoding="utf-8")
+            with patch.object(app, "call_orca") as call, patch("builtins.print"):
+                app.show_status("한글 대회")
+            call.assert_not_called()
+            self.assertEqual(state.read_text(encoding="utf-8"), content)
+
+    def test_watch_refreshes_without_launching(self):
+        with patch.object(app, "show_status") as show, patch.object(app.time, "sleep", side_effect=KeyboardInterrupt), patch("builtins.print"):
+            with self.assertRaises(KeyboardInterrupt):
+                app.watch_status("대회", 5)
+            show.assert_called_once_with("대회")
+        with self.assertRaises(ValueError):
+            app.watch_status(interval=0)
 
     def test_provider_arguments_receipt_and_duplicate_guard(self):
         for agent in ("claude", "codex"):
